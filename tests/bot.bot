@@ -1,0 +1,18 @@
+{
+    "name": "opsdroid",
+    "description": "opsdroid test bot",
+    "services": [
+        {
+            "type": "endpoint",
+            "appId": "",
+            "appPassword": "",
+            "endpoint": "http://localhost:9000",
+            "id": "7289dd40-f349-11e8-8399-39b164e935f0",
+            "name": "Opsdroid bot"
+        }
+    ],
+    "padlock": "",
+    "version": "2.0",
+    "overrides": null,
+    "path": "bot.bot"
+}
