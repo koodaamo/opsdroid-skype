@@ -30,6 +30,8 @@ class SkypeConnector(Connector):
     def __init__(self, config):
         self.name = "SkypeConnector"
         self.config = config
+        self.host = config.get("host", HOST)
+        self.port = config.get("port", PORT)
         # self.default_room = "MyDefaultRoom" # The default room for messages to go
         self.loop = asyncio.get_event_loop()
         self.reader = self.writer = None
@@ -40,8 +42,8 @@ class SkypeConnector(Connector):
         self.sequence = 0
 
     async def connect(self, opsdroid):
-        self.server = await asyncio.start_server(self.accept, HOST, PORT)
-        _LOGGER.info(_("Skype bot running at %s:%i"), HOST, PORT)
+        self.server = await asyncio.start_server(self.accept, self.host, self.port)
+        _LOGGER.info(_("Skype bot running at http://%s:%i/connectors/%s"), self.host, self.port, self.name)
 
     async def accept(self, reader, writer):
         n = arrow.now()
@@ -64,8 +66,27 @@ class SkypeConnector(Connector):
                 bytes_parsed = parser.execute(data, bytes_received)
                 assert bytes_parsed == bytes_received
 
+            if parser.get_method() != "POST":
+                _LOGGER.warning("Skype bot only accepts POST requests, ignoring request")
+                writer.close()
+                await writer.wait_closed()
+                continue
+
+            if parser.get_path() != "/connectors/" + self.name:
+                _LOGGER.warning("Skype bot does not serve at %s, ignoring request", parser.get_path())
+                writer.close()
+                await writer.wait_closed()
+                continue
+
             body = parser.recv_body()
-            msg = json.loads(str(body, 'utf-8'))
+            try:
+                msg = json.loads(str(body, 'utf-8'))
+            except:
+                _LOGGER.error("Skype bot got non-JSON message payload, ignoring request")
+                writer.close()
+                await writer.wait_closed()
+                continue
+
             activity = Activity.deserialize(msg)
 
             if not self.authenticated:
