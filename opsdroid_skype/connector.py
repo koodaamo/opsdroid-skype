@@ -99,7 +99,7 @@ class SkypeConnector(Connector):
         return aiohttp.web.Response(text="OK", status=200)
 
 
-    def authenticate(self, request, activity):
+    async def authenticate(self, request, activity):
         ""
         authh = request.headers.get("Authorization")
         if authh:
