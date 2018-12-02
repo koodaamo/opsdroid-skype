@@ -23,8 +23,6 @@ APP_ID = ""
 APP_PASS = ""
 
 # server configuration
-HOST = '127.0.0.1'
-PORT = 9876
 ENDPOINT = "/connector/skype"
 
 
@@ -35,8 +33,6 @@ class SkypeConnector(Connector):
         self.loop = asyncio.get_event_loop()
         self.config = config
         self.endpoint = config.get("endpoint", ENDPOINT)
-        self.host = config.get("host", HOST)
-        self.port = config.get("port", PORT)
         self.app_id = config.get("app_id", APP_ID)
         self.app_pass = config.get("app_pass", APP_PASS)
         self.credentials = MicrosoftAppCredentials(self.app_id, self.app_pass)
