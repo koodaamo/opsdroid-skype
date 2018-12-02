@@ -3,9 +3,8 @@ import json
 import asyncio
 import logging
 
+import aiohttp
 import arrow
-from httptools import HttpRequestParser
-from http_parser.parser import HttpParser
 
 # skype dependencies
 from botbuilder.schema import (Activity, ActivityTypes)
@@ -17,113 +16,104 @@ from opsdroid.connector import Connector
 from opsdroid.message import Message
 
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("skypeconnector")
 APP_ID = ""
-APP_PASSWORD = ""
+APP_PASS = ""
 
 HOST = '127.0.0.1'
-PORT = 9000
+PORT = 9876
+ENDPOINT = "/connector/skype"
 
 
 class SkypeConnector(Connector):
 
     def __init__(self, config):
-        self.name = "SkypeConnector"
+        self.name = self.__class__.__name__
+        self.loop = asyncio.get_event_loop()
         self.config = config
+        self.endpoint = config.get("endpoint", ENDPOINT)
         self.host = config.get("host", HOST)
         self.port = config.get("port", PORT)
-        # self.default_room = "MyDefaultRoom" # The default room for messages to go
-        self.loop = asyncio.get_event_loop()
-        self.reader = self.writer = None
-        self.credentials = MicrosoftAppCredentials(APP_ID, APP_PASSWORD)
-        self.credential_provider = SimpleCredentialProvider(APP_ID, APP_PASSWORD)
+        self.app_id = config.get("app_id", APP_ID)
+        self.app_pass = config.get("app_pass", APP_PASS)
+        self.credentials = MicrosoftAppCredentials(self.app_id, self.app_pass)
+        self.credential_provider = SimpleCredentialProvider(self.app_id, self.app_pass)
         self.authenticated = False
-        self.request_queue = asyncio.Queue()
-        self.sequence = 0
+        self.counter = 0
+
+    @property
+    def authentication_required(self):
+        return True if self.app_id and self.app_pass else False
 
     async def connect(self, opsdroid):
-        self.server = await asyncio.start_server(self.accept, self.host, self.port)
-        _LOGGER.info(_("Skype bot running at http://%s:%i/connectors/%s"), self.host, self.port, self.name)
+        self.opsdroid = opsdroid
+        router = opsdroid.web_server.web_app.router
+        opsdroid.web_server.web_app.router.add_post(self.endpoint, self.handle_POST)
+        opsdroid.web_server.web_app.router.add_get(self.endpoint, self.handle_GET)
+        opsdroid.web_server.web_app.router.add_options(self.endpoint, self.handle_OPTIONS)
+        _LOGGER.debug("inbound connector listening at %s" % self.endpoint)
 
-    async def accept(self, reader, writer):
+
+    async def handle_OPTIONS(self, request):
+        return aiohttp.web.Response(text="", status=200)
+
+    async def handle_GET(self, request):
+        return aiohttp.web.Response(text="Skype connector here!", status=200)
+
+    async def handle_POST(self, request):
         n = arrow.now()
-        self.sequence += 1
-        ts = '%i-%i-%i-%i' % (n.year, n.month, n.day, self.sequence)
-        self.request_queue.put_nowait((reader, writer, ts))
-        _LOGGER.debug("Skype bot queued request %s" % ts)
+        self.counter += 1
+        ts = '%i-%i-%i-%i' % (n.year, n.month, n.day, self.counter)
+        jsonmsg = await request.json()
+        activity = Activity.deserialize(jsonmsg)
+
+        if self.authentication_required:
+            return self.authenticate(request, activity)
+
+        if activity.type == ActivityTypes.conversation_update.value:
+            self.handle_join(activity)
+
+        elif activity.type == ActivityTypes.message.value:
+            connector = ConnectorClient(self.credentials, base_url=activity.service_url)
+            orig = (activity, connector)
+            msg = Message(activity.text, activity.from_property, activity.channel_id, self, orig)
+            await self.opsdroid.parse(msg)
+
+        else:
+            _LOGGER.warning("got invalid activity in message %s: %s", ts, activity.name)
+            _LOGGER.debug(activity)
+            _LOGGER.debug(jsonmsg)
+
+        return aiohttp.web.Response(text="OK", status=200)
 
 
-    async def listen(self, opsdroid):
-
-        while True:
-
-            reader, writer, ts = await self.request_queue.get()
-            parser = HttpParser()
-
-            while not parser.is_message_complete():
-                data = await reader.read(1000)
-                bytes_received = len(data)
-                bytes_parsed = parser.execute(data, bytes_received)
-                assert bytes_parsed == bytes_received
-
-            if parser.get_method() != "POST":
-                _LOGGER.warning("Skype bot only accepts POST requests, ignoring request")
-                writer.close()
-                await writer.wait_closed()
-                continue
-
-            if parser.get_path() != "/connectors/" + self.name:
-                _LOGGER.warning("Skype bot does not serve at %s, ignoring request", parser.get_path())
-                writer.close()
-                await writer.wait_closed()
-                continue
-
-            body = parser.recv_body()
+    def authenticate(self, request, activity):
+        ""
+        authh = request.headers.get("Authorization")
+        if authh:
             try:
-                msg = json.loads(str(body, 'utf-8'))
+                self.loop.run_until_complete(JwtTokenValidation.authenticate_request(activity, authh, self.credential_provider))
             except:
-                _LOGGER.error("Skype bot got non-JSON message payload, ignoring request")
-                writer.close()
-                await writer.wait_closed()
-                continue
-
-            activity = Activity.deserialize(msg)
-
-            if not self.authenticated:
-                _LOGGER.debug("Skype bot attempting to authenticate using message %s", ts)
-
-                auth = parser.get_headers().get("Authorization")
-                if not auth:
-                    _LOGGER.warning("Skype bot received no Authorization header in msg %s", ts)
-                try:
-                    await JwtTokenValidation.authenticate_request(activity, auth, self.credential_provider)
-                except:
-                    _LOGGER.warning("Skype bot received invalid authentication message %s", ts)
-                else:
-                    self.authenticated = True
-                    _LOGGER.debug("Skype bot handled authentication message %s", ts)
-                continue
-
-            if activity.type == ActivityTypes.conversation_update.value:
-                if activity.members_added[0].id != activity.recipient.id:
-                    _LOGGER.debug("Skype bot met new user in message %s", ts)
-                    #reply = BotRequestHandler.__create_reply_activity(activity, 'Hello and welcome to the echo bot!')
-                    #connector = ConnectorClient(self.credentials, base_url=reply.service_url)
-
-            elif activity.type == ActivityTypes.message.value:
-                connector = ConnectorClient(self.credentials, base_url=activity.service_url)
-                orig = (activity, connector)
-                msg = Message(activity.text, activity.from_property, activity.channel_id, self, orig)
-                _LOGGER.debug("Skype bot parsed %s %s message %s", parser.get_method(), parser.get_url(), ts)
-                await opsdroid.parse(msg)
-
+                _LOGGER.warning("attempted to authenticate but received invalid authentication message")
+                return aiohttp.web.Response(text="Bot could not authenticate", status=401)
             else:
-                _LOGGER.warning("Skype bot got invalid message %s", ts)
+                self.authenticated = True
+                _LOGGER.debug("authenticated")
+                return aiohttp.web.Response(text="OK", status=200)
+        else:
+            _LOGGER.warning("not authenticated and no Authorization header")
+            return aiohttp.web.Response(text="Bot could not authenticate", status=401)
+
+
+    def handle_join(self, activity):
+        ""
+        if activity.members_added[0].id != activity.recipient.id:
+            _LOGGER.info("new user joined chat")
+        else:
+            _LOGGER.info("we were added to chat")
 
 
     async def respond(self, message, opsdroid=None):
-        "construct a Skype bot reply Activity and send it using the connector"
-
         request_activity, connector = message.raw_message
 
         reply = Activity(
@@ -135,11 +125,13 @@ class SkypeConnector(Connector):
             text=message.text,
             service_url=request_activity.service_url)
 
-        connector.conversations.send_to_conversation(reply.conversation.id, reply)
+        def send_response():
+            connector.conversations.send_to_conversation(reply.conversation.id, reply)
+
+        result = await self.loop.run_in_executor(None, send_response)
+        _LOGGER.debug("response sent")
 
 
-    async def disconnect(self, opsdroid):
-        "Close the Skype bot server"
+    async def listen(self, opsdroid):
+        "Listen for new message - handled by the aiohttp web server"
 
-        self.server.close()
-        await self.server.wait_closed()
