@@ -8,7 +8,7 @@ the connectors section of your opsdroid config.
 
 * Free software: Apache Software License 2.0
 
-Configure it thus in your opsdroid config::
+Example opsdroid configuration for the connector::
 
  connectors:
    - name: skype
