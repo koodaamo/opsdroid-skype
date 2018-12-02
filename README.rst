@@ -8,6 +8,16 @@ the connectors section of your opsdroid config.
 
 * Free software: Apache Software License 2.0
 
+Configure it thus in your opsdroid config::
+
+ connectors:
+   - name: skype
+     host: 0.0.0.0
+     port: 9000
+     app_id:
+     app_pass:
+     endpoint: /connectors/skype
+
 
 Credits
 -------
