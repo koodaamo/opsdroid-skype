@@ -80,7 +80,8 @@ class SkypeConnector(Connector):
         # try to authenticate if required
         if not self.authenticated and self.authentication_required:
             result = await self.authenticate(request, activity)
-            return result
+            if result == False:
+                return aiohttp.web.Response(text="Bot could not authenticate", status=401)
 
         # handle different activities
         if activity.type == ActivityTypes.conversation_update.value:
@@ -107,14 +108,14 @@ class SkypeConnector(Connector):
                 await JwtTokenValidation.authenticate_request(activity, authh, self.credential_provider)
             except:
                 _LOGGER.warning("attempted to authenticate but received invalid authentication message")
-                return aiohttp.web.Response(text="Bot could not authenticate", status=401)
+                return False
             else:
                 self.authenticated = True
                 _LOGGER.debug("authenticated")
-                return aiohttp.web.Response(text="OK", status=200)
+                return True
         else:
             _LOGGER.warning("not authenticated and no Authorization header")
-            return aiohttp.web.Response(text="Bot could not authenticate", status=401)
+            return False
 
 
     def handle_join(self, activity):
