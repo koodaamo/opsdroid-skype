@@ -6,13 +6,13 @@
             "type": "endpoint",
             "appId": "",
             "appPassword": "",
-            "endpoint": "http://localhost:9000",
+            "endpoint": "http://127.0.0.1:9000/connector/skype",
             "id": "7289dd40-f349-11e8-8399-39b164e935f0",
             "name": "Opsdroid bot"
-        }
+        },
     ],
     "padlock": "",
     "version": "2.0",
-    "overrides": null,
-    "path": "bot.bot"
+    "path": "opsdroid-skype/tests/bot.bot",
+    "overrides": null
 }
