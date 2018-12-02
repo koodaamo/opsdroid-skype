@@ -17,9 +17,12 @@ from opsdroid.message import Message
 
 
 _LOGGER = logging.getLogger("skypeconnector")
+
+# authentication
 APP_ID = ""
 APP_PASS = ""
 
+# server configuration
 HOST = '127.0.0.1'
 PORT = 9876
 ENDPOINT = "/connector/skype"
@@ -40,12 +43,15 @@ class SkypeConnector(Connector):
         self.credential_provider = SimpleCredentialProvider(self.app_id, self.app_pass)
         self.authenticated = False
         self.counter = 0
+        self.queue = asyncio.Queue() # message queue
 
     @property
     def authentication_required(self):
+        "only require authentication if credentials are supplied"
         return True if self.app_id and self.app_pass else False
 
     async def connect(self, opsdroid):
+        "start up the connector"
         self.opsdroid = opsdroid
         router = opsdroid.web_server.web_app.router
         opsdroid.web_server.web_app.router.add_post(self.endpoint, self.handle_POST)
@@ -55,30 +61,39 @@ class SkypeConnector(Connector):
 
 
     async def handle_OPTIONS(self, request):
+        "the Azure test web chat makes HTTP OPTIONS calls to bot"
+        _LOGGER.debug("received OPTIONS request")
         return aiohttp.web.Response(text="", status=200)
 
     async def handle_GET(self, request):
+        _LOGGER.debug("received GET request")
         return aiohttp.web.Response(text="Skype connector here!", status=200)
 
     async def handle_POST(self, request):
+        "main handler; all bot communications happens over HTTP POST"
+
+        # set up a timestamp and counter
         n = arrow.now()
         self.counter += 1
         ts = '%i-%i-%i-%i' % (n.year, n.month, n.day, self.counter)
+
+        # parse into Activity
         jsonmsg = await request.json()
         activity = Activity.deserialize(jsonmsg)
 
+        # try to authenticate if required
         if self.authentication_required:
             return self.authenticate(request, activity)
 
+        # handle different activities
         if activity.type == ActivityTypes.conversation_update.value:
             self.handle_join(activity)
-
         elif activity.type == ActivityTypes.message.value:
             connector = ConnectorClient(self.credentials, base_url=activity.service_url)
             orig = (activity, connector)
             msg = Message(activity.text, activity.from_property, activity.channel_id, self, orig)
-            await self.opsdroid.parse(msg)
-
+            self.queue.put_nowait(msg)
+            _LOGGER.debug("queued message")
         else:
             _LOGGER.warning("got invalid activity in message %s: %s", ts, activity.name)
             _LOGGER.debug(activity)
@@ -91,8 +106,9 @@ class SkypeConnector(Connector):
         ""
         authh = request.headers.get("Authorization")
         if authh:
+            auth_task = JwtTokenValidation.authenticate_request(activity, authh, self.credential_provider)
             try:
-                self.loop.run_until_complete(JwtTokenValidation.authenticate_request(activity, authh, self.credential_provider))
+                self.loop.run_until_complete(auth_task)
             except:
                 _LOGGER.warning("attempted to authenticate but received invalid authentication message")
                 return aiohttp.web.Response(text="Bot could not authenticate", status=401)
@@ -106,11 +122,23 @@ class SkypeConnector(Connector):
 
 
     def handle_join(self, activity):
-        ""
+        "process channel joins"
+
         if activity.members_added[0].id != activity.recipient.id:
             _LOGGER.info("new user joined chat")
         else:
             _LOGGER.info("we were added to chat")
+
+
+    async def listen(self, opsdroid):
+        "Listen (queue) for new messages"
+        while True:
+            try:
+                msg = await self.queue.get()
+            except RuntimeError:
+                break
+            result = await self.opsdroid.parse(msg)
+            self.queue.task_done()
 
 
     async def respond(self, message, opsdroid=None):
@@ -131,7 +159,6 @@ class SkypeConnector(Connector):
         result = await self.loop.run_in_executor(None, send_response)
         _LOGGER.debug("response sent")
 
-
-    async def listen(self, opsdroid):
-        "Listen for new message - handled by the aiohttp web server"
+    async def disconnect(self, opsdroid):
+        await self.queue.join()
 
