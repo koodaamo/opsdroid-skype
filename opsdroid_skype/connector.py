@@ -63,7 +63,9 @@ class SkypeConnector(Connector):
 
     async def handle_GET(self, request):
         _LOGGER.debug("received GET request")
-        return aiohttp.web.Response(text="Skype connector here!", status=200)
+        btn = "<img src='https://dev.botframework.com/Client/Images/Add-To-Skype-Buttons.png'/>"
+        link = """<a href='https://join.skype.com/bot/{}'>{}</a>""".format(self.app_id, btn)
+        return aiohttp.web.Response(text=link, content_type="text/html", status=200)
 
     async def handle_POST(self, request):
         "main handler; all bot communications happens over HTTP POST"
