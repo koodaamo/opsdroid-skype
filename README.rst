@@ -35,10 +35,8 @@ When configuring the bot in Azure, make sure to:
 
 After completing the above steps, visit your bot endpoint using a web browser; you will see an image button for adding the bot to your skype contacts.
 
-Credits
--------
 
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+This package was created with Cookiecutter_ using the `audreyr/cookiecutter-pypackage`_ project template.
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
