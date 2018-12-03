@@ -24,17 +24,16 @@ The connector will then be running at `http://0.0.0.0:9000/connectors/skype`. Th
 
 To test the connector, you can use the `Bot Framework Emulator`. This package includes a ready-made configuration file in `tests/bot.bot`.
 
-To deploy a Skype bot, a Azure service account is needed. At the time of writing this (end of 2018), Azure offers a free tier that is sufficient to test the bot. The main steps to take in Azure to deploy the bot are:
+To deploy a Skype bot, a Azure service account is needed. At the time of writing this (end of 2018), Azure offers a free tier that is sufficient to test the bot. To test and deploy the bot, create and configure a 'Bot Channels Registration' resource.
 
-* create a 'Bot Channels Registration' resource
-* configure the registration (see 'settings')
-   * make sure to enter the correct full 'Messaging endpoint' URL (see above ^)
-   * test the bot using Azure (see 'Test in Web Chat')
-   * get a MS app id & password (you may need to click 'manage' in the settings view to get the password), and then enter those into the opsdroid config (see above ^ example)
-   * add a Skype 'channel' to the registration (note: there is NO NEED to configure it in any way)
-* visit your opsdroid bot URL using any web browser. You will see a button 
+When configuring the bot in Azure, make sure to:
 
+- enter the correct full 'Messaging endpoint' URL in settings
+- test the bot (see 'Test in Web Chat')
+- enter the bot Microsoft Application Id & Password into your opsdroid config; you may need to click the 'Manage' link in the bot registration settings to access the password
+- add a Skype 'channel' to the registration resource (there is NO NEED to configure it in any way or publish it!)
 
+After completing the above steps, visit your bot endpoint using a web browser; you will see an image button for adding the bot to your skype contacts.
 
 Credits
 -------
