@@ -3,7 +3,7 @@ opsdroid Skype extension
 ========================
 
 
-This extension provides Skype support for opsdroid. To use, just add 'skype' to
+This extension provides Skype support for `opsdroid`_. To use, just add 'skype' to
 the connectors section of your opsdroid config. Here's an example opsdroid configuration for the connector::
 
  web:
@@ -29,7 +29,8 @@ When configuring the bot in Azure, make sure to:
 - enter the bot Microsoft Application Id & Password into your opsdroid config; you may need to click the 'Manage' link in the bot registration settings to access the password
 - add a Skype 'channel' to the registration resource (there is NO NEED to configure it in any way or publish it!)
 
-After completing the above steps, visit your bot endpoint using a web browser; you will see an image button for adding the bot to your skype contacts.
+After completing the above steps, visit your bot endpoint using a web browser; you will be redirected to a Microsoft-hosted
+page for adding the bot as a Skype contact.
 
 ------------
 
@@ -37,6 +38,7 @@ Free software: Apache Software License 2.0
 
 Package created with Cookiecutter_ using the `audreyr/cookiecutter-pypackage`_ project template.
 
+.. _opsdroid: https://opsdroid.github.io
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
 .. _`Bot Framework Emulator`: https://docs.microsoft.com/en-us/azure/bot-service/bot-service-debug-emulator
