@@ -4,11 +4,7 @@ opsdroid Skype extension
 
 
 This extension provides Skype support for opsdroid. To use, just add 'skype' to
-the connectors section of your opsdroid config.
-
-* Free software: Apache Software License 2.0
-
-Example opsdroid configuration for the connector::
+the connectors section of your opsdroid config. Here's an example opsdroid configuration for the connector::
 
  web:
      host: 0.0.0.0
@@ -35,8 +31,11 @@ When configuring the bot in Azure, make sure to:
 
 After completing the above steps, visit your bot endpoint using a web browser; you will see an image button for adding the bot to your skype contacts.
 
+------------
 
-This package was created with Cookiecutter_ using the `audreyr/cookiecutter-pypackage`_ project template.
+Free software: Apache Software License 2.0
+
+Package created with Cookiecutter_ using the `audreyr/cookiecutter-pypackage`_ project template.
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
