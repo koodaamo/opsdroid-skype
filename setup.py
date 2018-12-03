@@ -12,7 +12,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    'opsdroid', 'arrow', 'httptools', 'http_parser', 'botbuilder-core','botbuilder-schema',
+    'opsdroid', 'arrow', 'botbuilder-core','botbuilder-schema',
     'botframework-connector'
 ]
 
@@ -24,7 +24,7 @@ setup(
     author="Petri Savolainen",
     author_email='petri@koodaamo.fi',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
@@ -38,7 +38,7 @@ setup(
     license="Apache Software License 2.0",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
-    keywords='opsdroid skype',
+    keywords='opsdroid skype bot',
     name='opsdroid-skype',
     packages=['opsdroid_skype'],
     setup_requires=setup_requirements,
