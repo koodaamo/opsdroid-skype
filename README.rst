@@ -22,7 +22,7 @@ Example opsdroid configuration for the connector::
 
 The connector will then be running at `http://0.0.0.0:9000/connectors/skype`. This is your skype bot endpoint.
 
-To test the connector, you can use the `Bot Framework Emulator`. This package includes a ready-made configuration file in `tests/bot.bot`.
+To test the connector, you can use the `Bot Framework Emulator`_. This package includes a ready-made configuration file in `tests/bot.bot`.
 
 To deploy a Skype bot, a Azure service account is needed. At the time of writing this (end of 2018), Azure offers a free tier that is sufficient to test the bot. To test and deploy the bot, create and configure a 'Bot Channels Registration' resource.
 
