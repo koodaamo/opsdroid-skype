@@ -2,6 +2,9 @@
 opsdroid Skype extension
 ========================
 
+**Note: this extension requires an opsdroid release that has support for entry point - facilitated
+packaged extensions. Currently there are no such releases yet; use opsdroid github master checkout
+until then.**
 
 This extension provides Skype support for `opsdroid`_. To use, just add 'skype' to
 the connectors section of your opsdroid config. Here's an example opsdroid configuration for the connector::
