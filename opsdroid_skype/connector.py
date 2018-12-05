@@ -28,10 +28,11 @@ ENDPOINT = "/connector/skype"
 
 class SkypeConnector(Connector):
 
-    def __init__(self, config):
+    def __init__(self, config, opsdroid):
         self.name = self.__class__.__name__
         self.loop = asyncio.get_event_loop()
         self.config = config
+        self.opsdroid = opsdroid
         self.endpoint = config.get("endpoint", ENDPOINT)
         self.app_id = config.get("app_id", APP_ID)
         self.app_pass = config.get("app_pass", APP_PASS)
@@ -39,20 +40,20 @@ class SkypeConnector(Connector):
         self.credential_provider = SimpleCredentialProvider(self.app_id, self.app_pass)
         self.authenticated = False
         self.counter = 0
-        self.queue = asyncio.Queue() # message queue
+        self._queue = asyncio.Queue() # message queue
+        self._closing = asyncio.Event()
 
     @property
     def authentication_required(self):
         "only require authentication if credentials are supplied"
         return True if self.app_id and self.app_pass else False
 
-    async def connect(self, opsdroid):
+    async def connect(self, opsdroid=None):
         "start up the connector"
-        self.opsdroid = opsdroid
-        router = opsdroid.web_server.web_app.router
-        opsdroid.web_server.web_app.router.add_post(self.endpoint, self.handle_POST)
-        opsdroid.web_server.web_app.router.add_get(self.endpoint, self.handle_GET)
-        opsdroid.web_server.web_app.router.add_options(self.endpoint, self.handle_OPTIONS)
+        router = self.opsdroid.web_server.web_app.router
+        router.add_post(self.endpoint, self.handle_POST)
+        router.add_get(self.endpoint, self.handle_GET)
+        router.add_options(self.endpoint, self.handle_OPTIONS)
         _LOGGER.debug("inbound connector listening at %s" % self.endpoint)
 
 
@@ -67,6 +68,9 @@ class SkypeConnector(Connector):
 
     async def handle_POST(self, request):
         "main handler; all bot communications happens over HTTP POST"
+
+        if self._closing.is_set():
+            return aiohttp.web.Response(text="Service is shutting down", status=503)
 
         # set up a timestamp and counter
         n = arrow.now()
@@ -90,7 +94,7 @@ class SkypeConnector(Connector):
             connector = ConnectorClient(self.credentials, base_url=activity.service_url)
             orig = (activity, connector)
             msg = Message(activity.text, activity.from_property, activity.channel_id, self, orig)
-            self.queue.put_nowait(msg)
+            self._queue.put_nowait(msg)
             _LOGGER.debug("queued message")
         else:
             _LOGGER.warning("got invalid activity in message %s: %s", ts, activity.name)
@@ -127,18 +131,21 @@ class SkypeConnector(Connector):
             _LOGGER.info("we were added to chat")
 
 
-    async def listen(self, opsdroid):
+    async def listen(self):
         "Listen (queue) for new messages"
-        while True:
-            try:
-                msg = await self.queue.get()
-            except RuntimeError:
-                break
+
+        async def process_messages():
+            msg = await self._queue.get()
             result = await self.opsdroid.parse(msg)
-            self.queue.task_done()
+            self._queue.task_done()
+
+        message_processor = asyncio.create_task(process_messages())
+        await self._closing.wait()
+        _LOGGER.debug("shutting down message queue, we're done")
+        message_processor.cancel()
 
 
-    async def respond(self, message, opsdroid=None):
+    async def respond(self, message):
         request_activity, connector = message.raw_message
 
         reply = Activity(
@@ -157,5 +164,5 @@ class SkypeConnector(Connector):
         _LOGGER.debug("response sent")
 
     async def disconnect(self):
-        await self.queue.join()
-
+        _LOGGER.debug("opsdroid tells us to close, starting shutdown")
+        self._closing.set()
