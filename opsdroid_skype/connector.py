@@ -156,6 +156,6 @@ class SkypeConnector(Connector):
         result = await self.loop.run_in_executor(None, send_response)
         _LOGGER.debug("response sent")
 
-    async def disconnect(self, opsdroid):
+    async def disconnect(self):
         await self.queue.join()
 
